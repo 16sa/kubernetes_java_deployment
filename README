@@ -1,0 +1,158 @@
+REAL TIME MONITORING HANDSON: Prometheus and Grafana Dashboard on EKS Cluster using Helm Chart
+
+***Launch EC2 Instance
+Instance Type: t2.medium
+AMIs: Ubuntu
+***Create the IAM role having full access
+Go to IAM -> Create role -> Select EC2 -> Name the role EC2-ROLE-FOR-ACCESSING-EKS-CLUSTER -> Give Full admin access 
+"AdministratorAccess"
+***Attach the IAM role having full access
+Go to EC2 -> Click on Actions on the left hand side -> Security -> Modify IAM role
+***Install AWS CLI
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+apt install unzip
+unzip awscliv2.zip
+./aws/install
+aws --version
+***Install and Setup Kubectl(node agent)
+curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/
+release/stable.txt)/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+mv ./kubectl /usr/local/bin
+kubectl version
+***Install and Setup eksctl
+curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar 
+xz -C /tmp
+mv /tmp/eksctl /usr/local/bin
+eksctl version
+***Install Helm chart (is a package that contains all the necessary resource definitions and configurations to deploy an application, 
+tool, or service onto a Kubernetes cluster. Think of it like a pre-packaged application with installation instructions for Kubernetes)
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+helm version
+***Creating an Amazon EKS cluster using eksctl
+1. Name of the cluster : --eks2
+2. Version of Kubernetes : --version 1.26
+3. Region : --region eu-west-3
+4. Nodegroup name/worker nodes : --nodegroup-name worker-nodes
+5. Node Type : --nodegroup-type t2.medium
+6. Number of nodes: --nodes 2
+7. Minimum Number of nodes: --nodes-min 2
+8. Maximum Number of nodes: --nodes-max 3
+eksctl create cluster --name eks2 --version 1.26 --region eu-west-3 --nodegroup-name worker-nodes --node-type t2.medium --nodes 2 --nodes-min 2 --nodes-max 3
+
+eksctl will set up an auto-scaling group that starts with 2 "t2.medium" instances, and can scale up to 3 instances if needed, and down to 2 if the load decreases.
+in this case eks2 is the name we are giving to our EKS cluster.  The EKS control plane for eks2 is managed by AWS It consists of the Kubernetes API server, scheduler, 
+and etcd (the database)
+AWS provides the control plane for us. and this instance from which we run this command, It's only used to configure and interact with the EKS cluster, 
+
+but it does not become part of the control plane. 
+
+kubectl get nodes
+IF ANY ERROR ==> aws eks update-kubeconfig --region <region-code> --name <cluster-name>
+***Installing the Kubernetes Metrics Server if not already installed
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+***Verify that the metrics-server deployment is running the desired number of pods with the following command:
+kubectl get deployment metrics-server -n kube-system
+***Install Prometheus using Helm Chart
+Add Prometheus helm chart repository where the prometheus chart is located. Helm needs to be configured to know about this repository using this command:
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+***Update helm chart repository
+helm repo update
+helm repo list
+***Create prometheus namespace
+kubectl create namespace prometheus
+***Install Prometheus
+helm install prometheus prometheus-community/prometheus --namespace prometheus --set alertmanager.persistentVolume.storageClass="gp2" --set 
+server.persistentVolume.storageClass="gp2"
+***Create IAM OIDC Provider
+Imagine your EKS cluster has its own unique "identity card" (the OIDC issuer URL). When your applications inside the cluster (using service accounts) want to access 
+AWS resources, they need to show this "identity card" to AWS.
+However, AWS doesn't automatically recognize every EKS cluster's "identity card." You need to explicitly tell AWS to trust your cluster's "identity card" by creating
+an IAM OIDC provider. This provider acts as a bridge of trust between your EKS cluster's identity system and AWS IAM.
+In conclusion, Your cluster has an OpenID Connect (OIDC) issuer URL associated with it. To 
+use AWS Identity and Access Management (IAM) roles for service accounts,
+an IAM OIDC provider must exist for your cluster's OIDC issuer URL.
+
+oidc_id=$(aws eks describe-cluster --name eks2 --region eu-west-3 --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 5)
+aws iam list-open-id-connect-providers | grep $oidc_id | cut -d "/" -f4
+eksctl utils associate-iam-oidc-provider --cluster eks2 --approve --region eu-west-3
+***Create IAM service account with role
+eksctl create iamserviceaccount --name ebs-csi-controller-sa --namespace kube-system --cluster eks2 --attach-policy-arn 
+arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy --approve
+--role-only --role-name AmazonEKS_EBS_CSI_DriverRole --region eu-west-3
+this command automates the process of setting up IAM Roles for Service Accounts (IRSA) for the EBS CSI driver in your EKS cluster. It attaches the 
+AmazonEBSCSIDriverPolicy policy to this IAM role.This policy grants the role the necessary permissions to interact with EBS. It creates a Kubernetes service
+account named ebs-csi-controller-sa in the kube-system namespace.it configures a trust relationship between the IAM role and the Kubernetes service account. 
+This trust relationship allows any Pod running under the ebs-csi-controller-sa service account to assume the AmazonEKS_EBS_CSI_DriverRole IAM role.
+***Attach ROLE to eks 
+eksctl create addon --name aws-ebs-csi-driver --cluster eks2 --service-account-role-arn arn:aws:iam::ACCOUNT_ID:role/AmazonEKS_EBS_CSI_DriverRole --force 
+--region eu-west-3
+***kubectl get pods -n prometheus
+***View the Prometheus dashboard by forwarding the deployment ports
+kubectl port-forward deployment/prometheus-server 9090:9090 -n prometheus
+***Open different browser and connect to your EC2 instance and run:
+curl localhost:9090/graph
+***Install Grafana using helm chart
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+***Create a namespace Grafana
+kubectl create namespace grafana
+***Install Grafana
+helm install grafana grafana/grafana --namespace grafana --set persistence.storageClassName="gp2" --set persistence.enabled=true --set 
+adminPassword='EKS!sAWSome' --set service.type=LoadBalancer
+This command will create the Grafana service with an external load balancer to get the public view.
+***Verify the Grafana installation by using the following kubectl command:
+kubectl get pods -n grafana
+kubectl get service -n grafana
+***Copy the EXTERNAL-IP and paste in browser
+Use the Password you mentioned as EKS!sAWSome while creating Grafana and username as admin
+***Add the Prometheus as the datasource to Grafana
+Go to Grafana Dashboard -> Add the Datasource -> Select the Prometheus
+***Configure the endpoints of Prometheus and save
+URL - http://prometheus-server.prometheus.svc.cluster.local
+***Import Grafana dashboard from Grafana Labs
+Now we have set up everything in terms of Prometheus and Grafana. For the custom Grafana Dashboard, we are going to use the open source
+grafana dashboard. For this session, I am going to import a Grafana dashboard 6417, which is the "Kubernetes Cluster (Prometheus)" dashboard
+
+Go to left side -> click on dashboards -> Click on New -> Import -> Enter Dashboard ID 6417 and press load -> select the source as Prometheus
+***Visualise the java application: Deploy the application and monitor it on Grafana
+Step 1: Build the Java application 
+First we need to build docker images, install docker, maven and java following the prerquisites in this link https://github.com/16sa/Java_app
+git clone https://github.com/16sa/kubernetes_java_deployment.git
+
+SERVICE1: 
+cd kubernetes_java_deployment/shopfront/
+mvn clean install -DskipTests
+docker build -t Your_Docker_ID/shopfront:latest .
+docker login
+docker push Your_Docker_ID/shopfront:latest
+
+
+SERVICE2: 
+cd kubernetes_java_deployment/productcatalogue/
+mvn clean install -DskipTests
+docker build -t Your_Docker_ID/productcatalogue:latest .
+docker push Your_Docker_ID/productcatalogue:latest
+
+SERVICE3:
+cd kubernetes_java_deployment/stockmanager/
+mvn clean install -DskipTests
+docker build -t Your_Docker_ID/stockmanager:latest .
+docker push Your_Docker_ID/stockmanager:latest
+
+Step: Deploy the application using Kubernetes
+cd kubernetes_java_deployment/kubernetes
+
+kubectl apply -f shopfront-service.yaml
+kubectl apply -f productcatalogue-service.yaml
+kubectl apply -f stockmanager-service.yaml
+kubectl get deployment
+kubectl get pods
+kubectl logs shopfront-7868468c56-4r2kk -c shopfront 
+
+To visualise the application on Grafana you can check Deployments section
+
+*** Clean Up
+eksctl delete cluster --name eks2 --region eu-west-3
