@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
       - name: shopfront
-        image: safach/shopfront:latest
+        image: safach/shopfront:v1
         ports:
         - containerPort: 8010
         livenessProbe:
