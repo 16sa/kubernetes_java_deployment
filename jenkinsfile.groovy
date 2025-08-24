@@ -130,7 +130,7 @@ pipeline {
                         echo "Starting deployment of microservice: ${params.APP_NAME}"
                         
                         dir("kubernetes") {
-                            sh "sed -i 's|image: .*|image: ${params.DockerHubUser}/${params.APP_NAME}:${params.ImageTag}|' ${params.APP_NAME}-deployment.yaml"
+                            sh "sed -i 's|image: .*|image: ${params.DockerHubUser}/${params.APP_NAME}:${params.ImageTag}|' ${params.APP_NAME}-service.yaml"
                             
                             withKubeConfig([credentialsId: 'kubernetes-credentials']) {
                                 sh "kubectl apply -f ${params.APP_NAME}-service.yaml"
