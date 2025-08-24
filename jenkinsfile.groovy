@@ -103,12 +103,15 @@ pipeline {
             steps {
                 script {
                     dir("${params.APP_NAME}") {
-                        dockerImagePush("${params.APP_NAME}", "${params.ImageTag}", "${params.DockerHubUser}")
+                        withCredentials([usernamePassword(credentialsId: 'docker', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                            // Log in to Docker Hub using the credentials
+                            sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin"
+                            dockerImagePush("${params.APP_NAME}", "${params.ImageTag}", "${params.DockerHubUser}")
                     }
                 }
             }
         }
-        
+        }
         stage('Docker Image Cleanup : DockerHub') {
             when { expression { params.action == 'create' } }
             steps {
@@ -127,7 +130,6 @@ pipeline {
                         echo "Starting deployment of microservice: ${params.APP_NAME}"
                         
                         dir("kubernetes") {
-                            // Update the image tag in the deployment file
                             sh "sed -i 's|image: .*|image: ${params.DockerHubUser}/${params.APP_NAME}:${params.ImageTag}|' ${params.APP_NAME}-deployment.yaml"
                             
                             withKubeConfig([credentialsId: 'kubernetes-credentials']) {
