@@ -68,7 +68,8 @@ pipeline{
             when { expression { params.action == 'create' } }
             steps{
                 script{
-                    dockerBuild("${params.APP_NAME}","${params.ImageTag}","${params.DockerHubUser}")
+                    dir("kubernetes-configmap-reload") {
+                        dockerBuild("${params.APP_NAME}","${params.ImageTag}","${params.DockerHubUser}")
                 }
             }
         }
