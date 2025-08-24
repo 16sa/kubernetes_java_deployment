@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
       - name: shopfront
-        image: Your_Docker_ID/shopfront:latest
+        image: safach/shopfront:latest
         ports:
         - containerPort: 8010
         livenessProbe:

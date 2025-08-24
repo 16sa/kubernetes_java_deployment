@@ -1,12 +1,12 @@
 REAL TIME MONITORING HANDSON: Prometheus and Grafana Dashboard on EKS Cluster using Helm Chart
 
 ***Launch EC2 Instance
-Instance Type: t2.large
+Instance Type: t2.medium
 AMIs: Ubuntu
+
 ***Create the IAM role having full access
 Go to IAM -> Create role -> Select EC2 -> Name the role EC2-ROLE-FOR-ACCESSING-EKS-CLUSTER -> Give Full admin access 
 "AdministratorAccess"
-
 ***Attach the IAM role having full access
 Go to EC2 -> Click on Actions on the left hand side -> Security -> Modify IAM role
 
@@ -45,7 +45,7 @@ helm version
 
 ***Creating an Amazon EKS cluster using eksctl
 1. Name of the cluster : --eks2
-2. Version of Kubernetes : --version 1.28
+2. Version of Kubernetes : --version 1.26
 3. Region : --region eu-west-3
 4. Nodegroup name/worker nodes : --nodegroup-name worker-nodes
 5. Node Type : --nodegroup-type t2.medium
