@@ -19,6 +19,15 @@ pipeline {
             }
         }
         
+        stage('Build Microservice') {
+            steps {
+                script {
+                    dir("${params.APP_NAME}") {
+                        sh "mvn clean install"
+                    }
+                }
+            }
+        }
         stage('Unit Test maven') {
             when { expression { params.action == 'create' } }
             steps {
