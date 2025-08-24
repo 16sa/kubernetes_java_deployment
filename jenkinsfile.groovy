@@ -1,100 +1,120 @@
 @Library('jenkins_shared_library') _
 
-pipeline{
-
+pipeline {
     agent any
 
-    parameters{
+    parameters {
         string(name: 'APP_NAME', description: "Name of the application for the CI process (e.g., productcatalogue, shopfront, stockmanager)")
         choice(name: 'action', choices: 'create\ndelete', description: 'Choose create/Destroy')
         string(name: 'ImageTag', description: "tag of the docker build", defaultValue: 'v1')
-        string(name: 'DockerHubUser', description: "name of the DockerHub user", defaultValue: 'safach')
+        string(name: 'DockerHubUser', description: "name of the DockerHub user", defaultValue: 'N/A')
     }
 
-    stages{
-        stage('Git Checkout'){
+    stages {
+        stage('Checkout Monorepo') {
             when { expression { params.action == 'create' } }
-            steps{
-                gitCheckout(
-                    branch: "main",
-                    url: "https://github.com/16sa/kubernetes_java_deployment.git"
-                )
+            steps {
+                git url: "https://github.com/16sa/kubernetes_java_deployment.git"
             }
         }
-        stage('Unit Test maven'){
+        
+        stage('Unit Test maven') {
             when { expression { params.action == 'create' } }
-            steps{
-                script{
-                    mvnTest()
+            steps {
+                script {
+                    dir("${params.APP_NAME}") {
+                        mvnTest()
+                    }
                 }
             }
         }
-        stage('Integration Test maven'){
+
+        stage('Integration Test maven') {
             when { expression { params.action == 'create' } }
-            steps{
-                script{
-                    mvnIntegrationTest()
+            steps {
+                script {
+                    dir("${params.APP_NAME}") {
+                        mvnIntegrationTest()
+                    }
                 }
             }
         }
-        stage('Static code analysis: Sonarqube'){
+        
+        stage('Static code analysis: Sonarqube') {
             when { expression { params.action == 'create' } }
-            steps{
-                script{
+            steps {
+                script {
                     def SonarQubecredentialsId = 'sonarqube-api'
-                    statiCodeAnalysis(SonarQubecredentialsId)
+                    dir("${params.APP_NAME}") {
+                        statiCodeAnalysis(SonarQubecredentialsId)
+                    }
                 }
             }
         }
-        stage('Quality Gate Status Check : Sonarqube'){
+        
+        stage('Quality Gate Status Check : Sonarqube') {
             when { expression { params.action == 'create' } }
-            steps{
-                script{
+            steps {
+                script {
                     def SonarQubecredentialsId = 'sonarqube-api'
-                    QualityGateStatus(SonarQubecredentialsId)
+                    dir("${params.APP_NAME}") {
+                        QualityGateStatus(SonarQubecredentialsId)
+                    }
                 }
             }
         }
-        stage('Maven Build : maven'){
+        
+        stage('Maven Build : maven') {
             when { expression { params.action == 'create' } }
-            steps{
-                script{
-                    dir("kubernetes-configmap-reload")
+            steps {
+                script {
+                    dir("${params.APP_NAME}") {
                         mvnBuild()
+                    }
                 }
             }
         }
-        stage('Docker Image Build'){
+        
+        stage('Docker Image Build') {
             when { expression { params.action == 'create' } }
-            steps{
-                script{
-                    dir("kubernetes-configmap-reload") {
-                        dockerBuild("${params.APP_NAME}","${params.ImageTag}","${params.DockerHubUser}")
+            steps {
+                script {
+                    dir("${params.APP_NAME}") {
+                        dockerBuild("${params.APP_NAME}", "${params.ImageTag}", "${params.DockerHubUser}")
+                    }
                 }
             }
         }
-        }
-        stage('Docker Image Scan: trivy '){
+        
+        stage('Docker Image Scan: trivy') {
             when { expression { params.action == 'create' } }
-            steps{
-                script{
-                    dockerImageScan("${params.APP_NAME}","${params.ImageTag}","${params.DockerHubUser}")
+            steps {
+                script {
+                    dir("${params.APP_NAME}") {
+                        dockerImageScan("${params.APP_NAME}", "${params.ImageTag}", "${params.DockerHubUser}")
+                    }
                 }
             }
         }
-        stage('Docker Image Push : DockerHub '){
+        
+        stage('Docker Image Push : DockerHub') {
             when { expression { params.action == 'create' } }
-            steps{
-                script{
-                    dockerImagePush("${params.APP_NAME}","${params.ImageTag}","${params.DockerHubUser}")
+            steps {
+                script {
+                    dir("${params.APP_NAME}") {
+                        dockerImagePush("${params.APP_NAME}", "${params.ImageTag}", "${params.DockerHubUser}")
+                    }
                 }
             }
         }
-        stage('Docker Image Cleanup : DockerHub '){
+        
+        stage('Docker Image Cleanup : DockerHub') {
             when { expression { params.action == 'create' } }
-            steps{
-                script{
-                    dockerImageCleanup("${params.APP_NAME}","${params.ImageTag}","${params.DockerHubUser}")
+            steps {
+                script {
+                    dir("${params.APP_NAME}") {
+                        dockerImageCleanup("${params.APP_NAME}", "${params.ImageTag}", "${params.DockerHubUser}")
+                    }
                 }
             }
         }
@@ -102,26 +122,21 @@ pipeline{
         stage('Deploy/Delete Microservice') {
             steps {
                 script {
-                    def kubernetesManifestsRepo = 'https://github.com/16sa/kubernetes_java_deployment.git'
-                    
-                    // Checkout the Kubernetes manifests once
-                    sh "git clone ${kubernetesManifestsRepo}"
-                    
                     if (params.action == 'create') {
                         echo "Starting deployment of microservice: ${params.APP_NAME}"
                         
-                        // Navigate to the correct directory and apply the manifests
-                        dir("kubernetes_java_deployment/kubernetes") {
+                        dir("kubernetes") {
+                            // Update the image tag in the deployment file
+                            sh "sed -i 's|image: .*|image: ${params.DockerHubUser}/${params.APP_NAME}:${params.ImageTag}|' ${params.APP_NAME}-deployment.yaml"
+                            
                             withKubeConfig([credentialsId: 'kubernetes-credentials']) {
                                 sh "kubectl apply -f ${params.APP_NAME}-service.yaml"
                             }
                         }
-
                     } else if (params.action == 'delete') {
                         echo "Starting deletion of microservice: ${params.APP_NAME}"
                         
-                        // Navigate to the correct directory and delete the manifests
-                        dir("kubernetes_java_deployment/kubernetes") {
+                        dir("kubernetes") {
                             withKubeConfig([credentialsId: 'kubernetes-credentials']) {
                                 sh "kubectl delete -f ${params.APP_NAME}-service.yaml"
                             }
