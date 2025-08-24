@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
       - name: stockmanager
-        image: safach/stockmanager:v1
+        image: safach/stockmanager:latest
         ports:
         - containerPort: 8030
         livenessProbe:
