@@ -11,31 +11,16 @@ pipeline {
     }
 
     stages {
-        stage('Checkout repo') {
+        stage('Checkout repo and maven build') {
             when { expression { params.action == 'create' } }
             steps {
                 git branch: 'main', url: "https://github.com/16sa/kubernetes_java_deployment.git"
-
-            }
-        }
-        
-        stage('Build Microservice') {
-            steps {
                 script {
                     dir("${params.APP_NAME}") {
                         sh "mvn clean install"
                     }
                 }
-            }
-        }
-        stage('Unit Test maven') {
-            when { expression { params.action == 'create' } }
-            steps {
-                script {
-                    dir("${params.APP_NAME}") {
-                        mvnTest()
-                    }
-                }
+
             }
         }
 
