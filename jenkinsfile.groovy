@@ -11,10 +11,11 @@ pipeline {
     }
 
     stages {
-        stage('Checkout Monorepo') {
+        stage('Checkout repo') {
             when { expression { params.action == 'create' } }
             steps {
-                git url: "https://github.com/16sa/kubernetes_java_deployment.git"
+                git branch: 'main', url: "https://github.com/16sa/kubernetes_java_deployment.git"
+
             }
         }
         
