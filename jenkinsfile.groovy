@@ -6,7 +6,7 @@ pipeline {
     parameters {
         string(name: 'APP_NAME', description: "Name of the application for the CI process (e.g., productcatalogue, shopfront, stockmanager)")
         choice(name: 'action', choices: 'create\ndelete', description: 'Choose create/Destroy')
-        string(name: 'ImageTag', description: "tag of the docker build", defaultValue: 'v1')
+        string(name: 'ImageTag', description: "tag of the docker build", defaultValue: 'latest')
         string(name: 'DockerHubUser', description: "name of the DockerHub user", defaultValue: 'N/A')
     }
 
