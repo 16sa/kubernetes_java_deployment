@@ -59,7 +59,8 @@ pipeline{
             when { expression { params.action == 'create' } }
             steps{
                 script{
-                    mvnBuild()
+                    dir("kubernetes-configmap-reload")
+                        mvnBuild()
                 }
             }
         }
