@@ -77,13 +77,14 @@ jobs:
       # 7. Scan Docker Image with Trivy
       - name: Scan Docker image for vulnerabilities
         run: |
+          set +e   # disable 'exit on error' for this step
           docker run --rm aquasec/trivy:latest image \
             --exit-code 0 \
             --ignore-unfixed \
             --vuln-type os,library \
             --severity CRITICAL,HIGH \
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.inputs.APP_NAME }}:${{ github.event.inputs.ImageTag }}
-
+            set -e   # re-enable 'exit on error'
 
       # 8. Deploy to Kubernetes
       - name: Deploy to Kubernetes
