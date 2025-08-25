@@ -73,8 +73,19 @@ jobs:
           context: ./${{ github.event.inputs.APP_NAME }}
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.inputs.APP_NAME }}:${{ github.event.inputs.ImageTag }}
+      
+      # 7. Scan Docker image for vulnerabilities
+      - name: Scan Docker image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.inputs.APP_NAME }}:${{ github.event.inputs.ImageTag }}
+          format: 'table'
+          exit-code: '0'    
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
 
-      # 7. Deploy to Kubernetes
+      # 8. Deploy to Kubernetes
       - name: Deploy to Kubernetes
         run: |
           echo "Starting deployment of microservice: ${{ github.event.inputs.APP_NAME }}"
