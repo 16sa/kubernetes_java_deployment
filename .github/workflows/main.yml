@@ -76,21 +76,15 @@ jobs:
 
       # 7. Scan Docker Image with Trivy
       - name: Scan Docker image for vulnerabilities
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.inputs.APP_NAME }}:${{ github.event.inputs.ImageTag }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+        run: |
+          docker run --rm aquasec/trivy:latest image \
+            --exit-code 0 \
+            --ignore-unfixed \
+            --vuln-type os,library \
+            --severity CRITICAL,HIGH \
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.inputs.APP_NAME }}:${{ github.event.inputs.ImageTag }}
 
-      - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: 'trivy-results.sarif'
-             
+
       # 8. Deploy to Kubernetes
       - name: Deploy to Kubernetes
         run: |
