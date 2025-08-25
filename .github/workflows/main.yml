@@ -93,10 +93,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ secrets.AWS_REGION }} \
+            --name eks2
+
       - name: Deploy to Kubernetes
         run: |
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 --decode > kubeconfig.yaml
-          export KUBECONFIG=kubeconfig.yaml
           kubectl apply -f kubernetes/${{ github.event.inputs.APP_NAME }}-service.yaml
 
   # This job runs when you choose the 'delete' action
