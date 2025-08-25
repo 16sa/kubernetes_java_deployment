@@ -3,12 +3,18 @@ REAL TIME MONITORING HANDSON: Prometheus and Grafana Dashboard on EKS Cluster us
 ***Launch EC2 Instance
 Instance Type: t2.large
 AMIs: Ubuntu
+
 ***Create the IAM role having full access
-Go to IAM -> Create role -> Select EC2 -> Name the role EC2-ROLE-FOR-ACCESSING-EKS-CLUSTER -> Give Full admin access 
-"AdministratorAccess"
+Go to IAM -> Create role -> Select EC2 -> Give Full admin access "AdministratorAccess" -> Name the role EC2-ROLE-FOR-ACCESSING-EKS-CLUSTER
 
 ***Attach the IAM role having full access
 Go to EC2 -> Click on Actions on the left hand side -> Security -> Modify IAM role
+
+***Install aws iam authenticator
+curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.15.10/2020-02-22/bin/linux/amd64/aws-iam-authenticator
+chmod +x ./aws-iam-authenticator
+sudo mv ./aws-iam-authenticator /usr/local/bin
+Test that the aws-iam-authenticator binary works: aws-iam-authenticator help
 
 ***Install AWS CLI
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -17,15 +23,8 @@ unzip awscliv2.zip
 ./aws/install
 aws --version
 
-***Install aws iam authenticator
-curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.15.10/2020-02-22/bin/linux/amd64/aws-iam-authenticator
-chmod +x ./aws-iam-authenticator
-sudo mv ./aws-iam-authenticator /usr/local/bin
-Test that the aws-iam-authenticator binary works: aws-iam-authenticator help
-
 ***Install and Setup Kubectl(node agent)
-curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/
-release/stable.txt)/bin/linux/amd64/kubectl
+curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
 chmod +x ./kubectl
 mv ./kubectl /usr/local/bin
 kubectl version
@@ -44,6 +43,8 @@ chmod 700 get_helm.sh
 helm version
 
 ***Creating an Amazon EKS cluster using eksctl
+eksctl create cluster --name eks2 --version 1.28 --region eu-west-3 --nodegroup-name worker-nodes --node-type t2.medium --nodes 2 --nodes-min 2 --nodes-max 3
+
 1. Name of the cluster : --eks2
 2. Version of Kubernetes : --version 1.28
 3. Region : --region eu-west-3
@@ -52,14 +53,10 @@ helm version
 6. Number of nodes: --nodes 2
 7. Minimum Number of nodes: --nodes-min 2
 8. Maximum Number of nodes: --nodes-max 3
-eksctl create cluster --name eks2 --version 1.28 --region eu-west-3 --nodegroup-name worker-nodes --node-type t2.medium --nodes 2 --nodes-min 2 --nodes-max 3
 
 eksctl will set up an auto-scaling group that starts with 2 "t2.medium" instances, and can scale up to 3 instances if needed, and down to 2 if the load decreases.
-in this case eks2 is the name we are giving to our EKS cluster.  The EKS control plane for eks2 is managed by AWS It consists of the Kubernetes API server, scheduler, 
-and etcd (the database)
-AWS provides the control plane for us. and this instance from which we run this command, It's only used to configure and interact with the EKS cluster, 
-
-but it does not become part of the control plane. 
+in this case eks2 is the name we are giving to our EKS cluster.  The EKS control plane for eks2 is managed by AWS It consists of the Kubernetes API server, scheduler, and etcd (the database)
+AWS provides the control plane for us. and this instance from which we run this command, It's only used to configure and interact with the EKS cluster, but it does not become part of the control plane. 
 
 kubectl get nodes
 IF ANY ERROR ==> aws eks update-kubeconfig --region <region-code> --name <cluster-name>
@@ -67,8 +64,7 @@ IF ANY ERROR ==> aws eks update-kubeconfig --region <region-code> --name <cluste
 ***Installing the Kubernetes Metrics Server if not already installed
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 
-***Verify that the metrics-server deployment is running the desired number of pods with the following command:
-kubectl get deployment metrics-server -n kube-system
+Verify that the metrics-server deployment is running the desired number of pods with the following command: kubectl get deployment metrics-server -n kube-system
 
 ***Install Prometheus using Helm Chart
 Add Prometheus helm chart repository where the prometheus chart is located. Helm needs to be configured to know about this repository using this command:
