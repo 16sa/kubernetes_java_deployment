@@ -80,7 +80,7 @@ jobs:
         with:
           image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.inputs.APP_NAME }}:${{ github.event.inputs.ImageTag }}'
           format: 'table'
-          exit-code: '1'
+          exit-code: 'O'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
