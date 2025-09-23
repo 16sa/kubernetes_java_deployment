@@ -1,80 +1,90 @@
-name: Shopfront CI/CD
+name: CI/CD Pipeline for Java App
 
+# This section replaces the Jenkins 'parameters' block
 on:
   workflow_dispatch:
     inputs:
       APP_NAME:
-        description: 'Application Name (shopfront, productcatalogue, etc.)'
+        description: 'Name of the application (e.g., productcatalogue, shopfront, stockmanage)'
         required: true
-        default: 'shopfront'
+        type: string
       action:
-        description: 'create or delete'
+        description: 'Choose create/delete'
         required: true
-        default: 'create'
+        type: choice
+        options:
+          - create
+          - delete
       ImageTag:
-        description: 'Docker image tag'
+        description: 'Tag for the Docker image'
         required: true
         default: 'latest'
-      DockerHubUser:
-        description: 'Docker Hub username'
-        required: true
-        default: 'N/A'
+        type: string
 
 jobs:
-  build:
+  # This job runs when you choose the 'create' action
+  build-and-deploy:
+    # This 'if' condition replaces the 'when' block in Jenkins
+    if: github.event.inputs.action == 'create'
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repo
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      # 1. Checkout repo
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          repository: '16sa/kubernetes_java_deployment'
+          ref: 'main'
 
-      # 2️⃣ Set up Java 8 + Maven cache
-      - name: Set up JDK 8
+      # 2. Set up JDK and Maven
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '8.0.362'  # Java 8 full version
+          java-version: '17'
           distribution: 'temurin'
           cache: maven
 
-      # 3️⃣ Maven build + unit tests
-      - name: Maven Build + Unit Tests
+      # 3. Maven Build & Integration Test
+      - name: Maven Build and Test
+        run: mvn -B clean install -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.httpconnectionManager.ttlSeconds=25
+        # The 'working-directory' is equivalent to the 'dir()' block in Jenkins
         working-directory: ${{ github.event.inputs.APP_NAME }}
-        run: mvn -B clean verify -DskipITs=true
 
-      # 4️⃣ Maven Integration Test (Failsafe)
-      - name: Maven Integration Tests
-        if: ${{ github.event.inputs.action == 'create' }}
-        working-directory: ${{ github.event.inputs.APP_NAME }}
-        run: mvn -B clean verify -DskipUnitTests
-
-      # 5️⃣ SonarQube static code analysis
+      # 4. SonarQube Static Code Analysis & Quality Gate
       - name: SonarQube Scan
-        if: ${{ github.event.inputs.action == 'create' }}
-        working-directory: ${{ github.event.inputs.APP_NAME }}
-        run: mvn sonar:sonar -Dsonar.login=${{ secrets.SONARQUBE_TOKEN }}
-
-      # 6️⃣ Docker build
-      - name: Docker Build
-        if: ${{ github.event.inputs.action == 'create' }}
-        working-directory: ${{ github.event.inputs.APP_NAME }}
-        run: docker build -t ${{ github.event.inputs.DockerHubUser }}/${{ github.event.inputs.APP_NAME }}:${{ github.event.inputs.ImageTag }} .
-
-      # 7️⃣ Docker login
-      - name: Docker Login
-        if: ${{ github.event.inputs.action == 'create' }}
-        uses: docker/login-action@v2
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          projectBaseDir: ${{ github.event.inputs.APP_NAME }}
 
-<<<<<<< HEAD
-      # 8️⃣ Docker push
-      - name: Push Docker Image
-        if: ${{ github.event.inputs.action == 'create' }}
-        working-directory: ${{ github.event.inputs.APP_NAME }}
-        run: docker push ${{ github.event.inputs.DockerHubUser }}/${{ github.event.inputs.APP_NAME }}:${{ github.event.inputs.ImageTag }}
-=======
+      # 5. Log in to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 6. Build and Push Docker Image
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ github.event.inputs.APP_NAME }}
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.inputs.APP_NAME }}:${{ github.event.inputs.ImageTag }}
+      
+      # 7. Scan Docker image for vulnerabilities
+      - name: Scan Docker image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.inputs.APP_NAME }}:${{ github.event.inputs.ImageTag }}
+          format: 'table'
+          exit-code: '0'    
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
       # 8. Deploy to Kubernetes
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3
@@ -82,28 +92,36 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ""
 
       - name: Update kubeconfig for EKS
         run: |
           aws eks update-kubeconfig \
             --region ${{ secrets.AWS_REGION }} \
             --name eks2
->>>>>>> parent of e7189f7 (update main.yml file 12)
 
-      # 9️⃣ Deploy to Kubernetes
       - name: Deploy to Kubernetes
-        if: ${{ github.event.inputs.action == 'create' }}
-        working-directory: kubernetes
-        env:
-          KUBECONFIG: ${{ secrets.KUBECONFIG }}
         run: |
-          sed -i "s|image: .*|image: ${{ github.event.inputs.DockerHubUser }}/${{ github.event.inputs.APP_NAME }}:${{ github.event.inputs.ImageTag }}|" ${{ github.event.inputs.APP_NAME }}-service.yaml
-          kubectl apply -f ${{ github.event.inputs.APP_NAME }}-service.yaml
+          kubectl apply -f kubernetes/${{ github.event.inputs.APP_NAME }}-service.yaml
 
-      # 🔟 Delete Kubernetes service
-      - name: Delete Kubernetes Service
-        if: ${{ github.event.inputs.action == 'delete' }}
-        working-directory: kubernetes
-        env:
-          KUBECONFIG: ${{ secrets.KUBECONFIG }}
-        run: kubectl delete -f ${{ github.event.inputs.APP_NAME }}-service.yaml
+  # This job runs when you choose the 'delete' action
+  destroy:
+    if: github.event.inputs.action == 'delete'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          repository: '16sa/kubernetes_java_deployment'
+          ref: 'main'
+          
+      - name: Delete from Kubernetes
+        run: |
+          echo "Starting deletion of microservice: ${{ github.event.inputs.APP_NAME }}"
+          
+          # Setup kubectl using the KUBE_CONFIG secret
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 --decode > kubeconfig.yaml
+          export KUBECONFIG=kubeconfig.yaml
+          
+          kubectl delete -f kubernetes/${{ github.event.inputs.APP_NAME }}-service.yaml --ignore-not-found=true
