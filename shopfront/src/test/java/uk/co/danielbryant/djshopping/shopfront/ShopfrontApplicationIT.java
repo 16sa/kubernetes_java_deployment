@@ -10,7 +10,7 @@ import org.springframework.test.context.TestPropertySource;
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = ShopfrontApplication.class)
 @TestPropertySource(properties = "eureka.client.enabled=false")
-public class ShopfrontApplicationTests {
+public class ShopfrontApplicationIT {
 
     @Test
     public void contextLoads() {
