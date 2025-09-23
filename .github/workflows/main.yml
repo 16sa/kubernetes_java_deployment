@@ -68,11 +68,27 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+<<<<<<< HEAD
       # 8️⃣ Docker push
       - name: Push Docker Image
         if: ${{ github.event.inputs.action == 'create' }}
         working-directory: ${{ github.event.inputs.APP_NAME }}
         run: docker push ${{ github.event.inputs.DockerHubUser }}/${{ github.event.inputs.APP_NAME }}:${{ github.event.inputs.ImageTag }}
+=======
+      # 8. Deploy to Kubernetes
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ secrets.AWS_REGION }} \
+            --name eks2
+>>>>>>> parent of e7189f7 (update main.yml file 12)
 
       # 9️⃣ Deploy to Kubernetes
       - name: Deploy to Kubernetes
