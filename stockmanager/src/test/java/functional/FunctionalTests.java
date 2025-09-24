@@ -8,8 +8,7 @@ import org.junit.runner.RunWith;
 @CucumberOptions(monochrome = true,
         features = "classpath:features/",
         plugin = "html:build/reports/cucumber",
-        glue = "functional",
-        strict = true)
+        glue = "functional")
 public class FunctionalTests {
 
 }
