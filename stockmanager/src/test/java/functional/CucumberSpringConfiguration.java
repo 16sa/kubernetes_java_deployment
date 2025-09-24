@@ -6,6 +6,6 @@ import uk.co.danielbryant.djshopping.stockmanager.StockManagerApplication;
 
 
 @CucumberContextConfiguration
-@SpringBootTest(classes = StockManagerApplication.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = StockManagerApplication.class)
 public class CucumberSpringConfiguration {
 }

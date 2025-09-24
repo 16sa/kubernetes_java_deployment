@@ -4,10 +4,7 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.test.context.ContextConfiguration;
-import uk.co.danielbryant.djshopping.stockmanager.StockManagerApplication;
 import uk.co.danielbryant.djshopping.stockmanager.model.Stock;
 
 import java.util.Arrays;
@@ -23,8 +20,6 @@ import static org.hamcrest.core.Is.is;
  * Boot test context. The actual test execution is handled by the
  * CucumberTestRunner class.
  */
-@ContextConfiguration
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = StockManagerApplication.class)
 public class RestStepDefs {
 
     @Autowired
