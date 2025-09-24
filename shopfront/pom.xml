@@ -90,7 +90,7 @@
                 <version>1.8</version>
                 <executions>
                     <execution>
-                        <phase>pre-integration-test</phase>
+                        <phase>initialize</phase>
                         <goals>
                             <goal>run</goal>
                         </goals>
@@ -101,7 +101,7 @@
                         </configuration>
                     </execution>
                 </executions>
-<           /plugin>
+            </plugin>
         </plugins>
 
     </build>
