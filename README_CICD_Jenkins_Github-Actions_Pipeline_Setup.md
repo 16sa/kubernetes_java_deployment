@@ -1,7 +1,7 @@
 
 ======================Jenkins=======================
 
-Step1: First we need to follow these steps from Step 1 to Step 13 https://github.com/16sa/Java_app/blob/main/README.md to setup a CI jenkins pipeline
+Step1: First we need to follow these steps from Step 1 to Step 13 https://github.com/16sa/Java_app/blob/main/README_CI_Pipeline_SETUP.md to setup a CI jenkins pipeline
 
 Step 2: We need to install the plugin on our Jenkins server to make the withKubeConfig command available to your pipeline.
 Navigate to Manage Jenkins on your Jenkins dashboard ==> Go to Manage Plugins ==> Click the Available plugins tab ==> In the search bar, 

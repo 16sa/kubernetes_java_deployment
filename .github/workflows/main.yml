@@ -53,11 +53,14 @@ jobs:
       # 4. SonarQube Static Code Analysis & Quality Gate
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@master
+        with:
+          projectBaseDir: ${{ github.event.inputs.APP_NAME }}
+          args: >
+            -Dsonar.projectKey=Github
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        with:
-          projectBaseDir: ${{ github.event.inputs.APP_NAME }}
+        
 
       # 5. Log in to Docker Hub
       - name: Login to Docker Hub
